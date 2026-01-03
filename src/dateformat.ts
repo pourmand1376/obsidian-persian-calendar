@@ -158,3 +158,87 @@ export function extractFolderPath(filePath: string): string {
     }
     return filePath.substring(0, lastSlashIndex);
 }
+
+/**
+ * Check if a file path matches the expected date and format pattern
+ * This is a simplified check that looks for the date components in the filename
+ * @param filePath The actual file path
+ * @param components Date components to check
+ * @param basePath Base folder path
+ * @param pattern Date format pattern
+ * @param usePersian Whether using Persian calendar
+ * @returns true if the file matches the expected date
+ */
+export function fileMatchesDate(
+    filePath: string,
+    components: DateFormatComponents,
+    basePath: string,
+    pattern: string,
+    usePersian: boolean
+): boolean {
+    // Generate the expected path
+    const expectedPath = generateNotePath(basePath, pattern, components, usePersian);
+    
+    // Simple comparison - check if paths match
+    return filePath === expectedPath;
+}
+
+/**
+ * Extract date components from a file path based on a pattern
+ * @param filePath The file path to parse
+ * @param basePath Base folder path
+ * @param pattern Date format pattern
+ * @param usePersian Whether using Persian calendar
+ * @returns Date components or null if path doesn't match pattern
+ */
+export function extractDateFromPath(
+    filePath: string,
+    basePath: string,
+    pattern: string,
+    usePersian: boolean
+): DateFormatComponents | null {
+    // Remove base path and .md extension
+    const cleanBasePath = basePath.trim().replace(/^\/*|\/*$/g, '');
+    let pathToCheck = filePath;
+    
+    if (cleanBasePath !== '' && cleanBasePath !== '/') {
+        const prefix = cleanBasePath + '/';
+        if (!pathToCheck.startsWith(prefix)) {
+            return null;
+        }
+        pathToCheck = pathToCheck.substring(prefix.length);
+    }
+    
+    // Remove .md extension
+    if (pathToCheck.endsWith('.md')) {
+        pathToCheck = pathToCheck.substring(0, pathToCheck.length - 3);
+    }
+    
+    // Try to match year-month-day pattern (most common for daily notes)
+    const dailyMatch = pathToCheck.match(/(\d{4})[\/\-]?(\d{1,2})?[\/\-]?(\d{1,2})?/);
+    if (dailyMatch) {
+        const year = parseInt(dailyMatch[1]);
+        const month = dailyMatch[2] ? parseInt(dailyMatch[2]) : 1;
+        const day = dailyMatch[3] ? parseInt(dailyMatch[3]) : undefined;
+        
+        return { year, month, day };
+    }
+    
+    // Try to match week pattern
+    const weekMatch = pathToCheck.match(/(\d{4})[\/\-]?W(\d{1,2})/);
+    if (weekMatch) {
+        const year = parseInt(weekMatch[1]);
+        const week = parseInt(weekMatch[2]);
+        return { year, month: 1, week };
+    }
+    
+    // Try to match quarter pattern
+    const quarterMatch = pathToCheck.match(/(\d{4})[\/\-]?Q(\d)/);
+    if (quarterMatch) {
+        const year = parseInt(quarterMatch[1]);
+        const quarter = parseInt(quarterMatch[2]);
+        return { year, month: 1, quarter };
+    }
+    
+    return null;
+}

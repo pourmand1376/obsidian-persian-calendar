@@ -170,6 +170,19 @@ export default class PersianCalendarSettingTab extends PluginSettingTab {
         githubadvice.appendText('پیش از هر اقدامی توصیه می‌کنم راهنمای افزونه در ');
         githubadvice.createEl('a', { text: 'گیت‌هاب', href: 'https://github.com/maleknejad/obsidian-persian-calendar' });
         githubadvice.appendText(' را مطالعه کنید و با ویژگی‌هایی که این افزونه در اختیارتان قرار می‌دهد آشنا شوید.');
+        
+        containerEl.createEl('h4', { text: 'راهنمای فرمت‌های تاریخ' });
+        const formatHelp = containerEl.createEl('p');
+        formatHelp.appendText('در فرمت‌های تاریخ می‌توانید از کدهای زیر استفاده کنید: ');
+        formatHelp.createEl('br');
+        formatHelp.appendText('YYYY: سال چهار رقمی، MM: ماه دو رقمی، DD: روز دو رقمی');
+        formatHelp.createEl('br');
+        formatHelp.appendText('WW: شماره هفته، Q: شماره فصل');
+        formatHelp.createEl('br');
+        formatHelp.appendText('برای ایجاد پوشه‌های جداگانه از "/" استفاده کنید. مثال: YYYY/MM/YYYY-MM-DD');
+        formatHelp.createEl('br');
+        formatHelp.appendText('توجه: عبارت‌های معنادار ({{این روز}}) با فرمت‌های استاندارد (YYYY-MM-DD) بهتر کار می‌کنند.');
+        
         containerEl.createEl('p', { text: 'مسیرها را قبل از تنظیم کردن در ابسیدین ایجاد کنید. مسیرها باید بدون "/" در ابتدای آن باشد.' });
         containerEl.createEl('p', { text: 'برای اعمال تغییرات، لازم است تقویم را از تنظیمات ابسیدین مجددا فعال کنید.' });
         const templaterparagraph = containerEl.createEl('p');

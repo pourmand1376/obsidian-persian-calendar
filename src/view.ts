@@ -8,7 +8,7 @@ import hijriMoment from 'moment-hijri';
 import PersianCalendarPlugin from './main';
 import { PersianCalendarHolidays, HijriCalendarHolidays, GregorianCalendarHolidays } from './holidays';
 import { iranianHijriAdjustments,basePersianDate, baseHijriDate } from './hijri';
-import { generateNotePath, extractFolderPath, DateFormatComponents } from './dateformat';
+import { generateNotePath, extractFolderPath, extractDateFromPath, DateFormatComponents } from './dateformat';
 
 
 
@@ -448,31 +448,35 @@ export default class PersianCalendarView extends View {
     }
 
     private async getDaysWithNotes(): Promise<number[]> {
-        const notesLocation = this.settings.dailyNotesFolderPath.trim().replace(/^\/*|\/*$/g, "");
-        const filePrefix = notesLocation ? `${notesLocation}/` : "";   
         const jy = this.currentJalaaliYear;
-        const jm = this.currentJalaaliMonth.toString().padStart(2, '0');
+        const jm = this.currentJalaaliMonth;
         const files = this.app.vault.getFiles();
         const noteDays: number[] = [];
+        const usePersian = this.settings.dateFormat === 'persian';
     
         files.forEach(file => {
-            if (!file.path.startsWith(filePrefix) || file.extension !== 'md') {
-                return;
-            }
-    
-            const match = file.name.match(/^(\d{4})-(\d{2})-(\d{2})\.md$/);
-            if (!match) return;
-    
-            const [ , year, month, day ] = match.map(Number);
+            // Try to extract date from the file path
+            const dateComponents = extractDateFromPath(
+                file.path,
+                this.settings.dailyNotesFolderPath,
+                this.settings.dailyNotesFormat,
+                usePersian
+            );
             
-            if (this.settings.dateFormat === 'georgian') {
-                const { jy: convJy, jm: convJm, jd: convJd } = toJalaali(new Date(year, month - 1, day));
-                if (convJy === jy && convJm === parseInt(jm)) {
-                    noteDays.push(convJd);
+            if (!dateComponents || !dateComponents.day) {
+                return; // Not a daily note or couldn't parse
+            }
+            
+            // Check if the file matches the current month/year
+            if (usePersian) {
+                if (dateComponents.year === jy && dateComponents.month === jm) {
+                    noteDays.push(dateComponents.day);
                 }
             } else {
-                if (year === jy && month === parseInt(jm)) {
-                    noteDays.push(day);
+                // Convert Gregorian date to Jalaali to check if it's in current month
+                const jalaaliDate = toJalaali(dateComponents.year, dateComponents.month, dateComponents.day);
+                if (jalaaliDate.jy === jy && jalaaliDate.jm === jm) {
+                    noteDays.push(jalaaliDate.jd);
                 }
             }
         });
@@ -481,23 +485,28 @@ export default class PersianCalendarView extends View {
     }
     
     private async getWeeksWithNotes(jy: number): Promise<number[]> {
-         
-        const notesLocation = this.settings.weeklyNotesFolderPath.trim().replace(/^\/*|\/*$/g, "");
-        const filePrefix = notesLocation ? `${notesLocation}/` : "";  
-    
         const files = this.app.vault.getFiles();
-        const weekNumbers: number[] = files
-            .filter(file => {
-                 
-                const expectedStart = `${filePrefix}${jy}-W`;
-                return file.path.startsWith(expectedStart) && file.extension === 'md';
-            })
-            .map(file => {
-                 
-                const match = file.name.match(/W(\d+)/);
-                return match ? parseInt(match[1], 10) : null;
-            })
-            .filter(weekNumber => weekNumber !== null) as number[];
+        const weekNumbers: number[] = [];
+        const usePersian = this.settings.dateFormat === 'persian';
+    
+        files.forEach(file => {
+            // Try to extract date from the file path
+            const dateComponents = extractDateFromPath(
+                file.path,
+                this.settings.weeklyNotesFolderPath,
+                this.settings.weeklyNotesFormat,
+                usePersian
+            );
+            
+            if (!dateComponents || !dateComponents.week) {
+                return; // Not a weekly note or couldn't parse
+            }
+            
+            // Check if the file matches the current year
+            if (dateComponents.year === jy) {
+                weekNumbers.push(dateComponents.week);
+            }
+        });
     
         return weekNumbers;
     }
