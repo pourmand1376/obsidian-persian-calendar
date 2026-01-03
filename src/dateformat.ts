@@ -78,17 +78,17 @@ export function formatDatePath(
     // Handle Persian calendar specific tokens
     if (usePersian) {
         // Replace in a specific order to avoid conflicts
-        // First, replace longer patterns
+        // First, replace longer patterns (4-letter, then 2-letter)
         momentPattern = momentPattern.replace(/MMMM/g, 'jMMMM');
         momentPattern = momentPattern.replace(/YYYY/g, 'jYYYY');
-        momentPattern = momentPattern.replace(/MM/g, 'jMM');
         momentPattern = momentPattern.replace(/DD/g, 'jDD');
-        // Then replace single letters that aren't already prefixed with 'j'
-        // Use a helper function to avoid lookbehind/lookahead regex for compatibility
-        momentPattern = replaceSingleToken(momentPattern, 'M', 'jM');
-        momentPattern = replaceSingleToken(momentPattern, 'D', 'jD');
-        // Replace WW with ww for Persian week
+        momentPattern = momentPattern.replace(/MM/g, 'jMM');
         momentPattern = momentPattern.replace(/WW/g, 'ww');
+        
+        // Now replace single M and D using a manual approach
+        // that avoids already-replaced tokens
+        momentPattern = replaceSingleTokens(momentPattern);
+        
         // Quarter handling for Persian calendar
         if (components.quarter) {
             momentPattern = momentPattern.replace(/Q/g, components.quarter.toString());
@@ -109,27 +109,25 @@ export function formatDatePath(
 }
 
 /**
- * Helper function to replace single tokens that aren't already prefixed
- * More compatible than negative lookbehind regex
+ * Helper function to replace single M and D tokens with jM and jD
+ * Avoids replacing tokens that are already part of jMM, jDD, etc.
  */
-function replaceSingleToken(str: string, token: string, replacement: string): string {
+function replaceSingleTokens(pattern: string): string {
+    const chars = pattern.split('');
     const result: string[] = [];
-    let i = 0;
     
-    while (i < str.length) {
-        if (str[i] === token) {
-            // Check if it's not preceded by 'j' and not followed by the same token
-            const prevChar = i > 0 ? str[i - 1] : '';
-            const nextChar = i < str.length - 1 ? str[i + 1] : '';
-            
-            if (prevChar !== 'j' && nextChar !== token) {
-                result.push(replacement);
-                i++;
-                continue;
-            }
+    for (let i = 0; i < chars.length; i++) {
+        const char = chars[i];
+        const prevChar = i > 0 ? chars[i - 1] : '';
+        const nextChar = i < chars.length - 1 ? chars[i + 1] : '';
+        
+        if (char === 'M' && prevChar !== 'M' && nextChar !== 'M' && prevChar !== 'j') {
+            result.push('jM');
+        } else if (char === 'D' && prevChar !== 'D' && nextChar !== 'D' && prevChar !== 'j') {
+            result.push('jD');
+        } else {
+            result.push(char);
         }
-        result.push(str[i]);
-        i++;
     }
     
     return result.join('');
@@ -241,6 +239,22 @@ export function extractDateFromPath(
         pathToCheck = pathToCheck.substring(0, pathToCheck.length - 3);
     }
     
+    // Try to match week pattern first (more specific)
+    const weekMatch = pathToCheck.match(/(\d{4})[\/\-]?W(\d{1,2})/);
+    if (weekMatch) {
+        const year = parseInt(weekMatch[1]);
+        const week = parseInt(weekMatch[2]);
+        return { year, month: 1, week };
+    }
+    
+    // Try to match quarter pattern (more specific)
+    const quarterMatch = pathToCheck.match(/(\d{4})[\/\-]?Q(\d)/);
+    if (quarterMatch) {
+        const year = parseInt(quarterMatch[1]);
+        const quarter = parseInt(quarterMatch[2]);
+        return { year, month: 1, quarter };
+    }
+    
     // Try to match year-month-day pattern (most common for daily notes)
     const dailyMatch = pathToCheck.match(/(\d{4})[\/\-]?(\d{1,2})?[\/\-]?(\d{1,2})?/);
     if (dailyMatch) {
@@ -249,22 +263,6 @@ export function extractDateFromPath(
         const day = dailyMatch[3] ? parseInt(dailyMatch[3]) : undefined;
         
         return { year, month, day };
-    }
-    
-    // Try to match week pattern
-    const weekMatch = pathToCheck.match(/(\d{4})[\/\-]?W(\d{1,2})/);
-    if (weekMatch) {
-        const year = parseInt(weekMatch[1]);
-        const week = parseInt(weekMatch[2]);
-        return { year, month: 1, week };
-    }
-    
-    // Try to match quarter pattern
-    const quarterMatch = pathToCheck.match(/(\d{4})[\/\-]?Q(\d)/);
-    if (quarterMatch) {
-        const year = parseInt(quarterMatch[1]);
-        const quarter = parseInt(quarterMatch[2]);
-        return { year, month: 1, quarter };
     }
     
     return null;
