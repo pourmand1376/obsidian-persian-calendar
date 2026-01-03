@@ -77,19 +77,17 @@ export function formatDatePath(
     
     // Handle Persian calendar specific tokens
     if (usePersian) {
-        // Replace YYYY with jYYYY for Persian year
-        momentPattern = momentPattern.replace(/YYYY/g, 'jYYYY');
-        // Replace MM with jMM for Persian month
-        momentPattern = momentPattern.replace(/MM/g, 'jMM');
-        // Replace M with jM for Persian month without padding
-        momentPattern = momentPattern.replace(/(?<!j)M(?!M)/g, 'jM');
-        // Replace DD with jDD for Persian day
-        momentPattern = momentPattern.replace(/DD/g, 'jDD');
-        // Replace D with jD for Persian day without padding
-        momentPattern = momentPattern.replace(/(?<!j)D(?!D)/g, 'jD');
-        // Replace MMMM with jMMMM for Persian month name
+        // Replace in a specific order to avoid conflicts
+        // First, replace longer patterns
         momentPattern = momentPattern.replace(/MMMM/g, 'jMMMM');
-        // Replace WW with jWW for Persian week
+        momentPattern = momentPattern.replace(/YYYY/g, 'jYYYY');
+        momentPattern = momentPattern.replace(/MM/g, 'jMM');
+        momentPattern = momentPattern.replace(/DD/g, 'jDD');
+        // Then replace single letters that aren't already prefixed with 'j'
+        // Use a helper function to avoid lookbehind/lookahead regex for compatibility
+        momentPattern = replaceSingleToken(momentPattern, 'M', 'jM');
+        momentPattern = replaceSingleToken(momentPattern, 'D', 'jD');
+        // Replace WW with ww for Persian week
         momentPattern = momentPattern.replace(/WW/g, 'ww');
         // Quarter handling for Persian calendar
         if (components.quarter) {
@@ -108,6 +106,33 @@ export function formatDatePath(
     const formatted = momentObj.format(momentPattern);
     
     return formatted;
+}
+
+/**
+ * Helper function to replace single tokens that aren't already prefixed
+ * More compatible than negative lookbehind regex
+ */
+function replaceSingleToken(str: string, token: string, replacement: string): string {
+    const result: string[] = [];
+    let i = 0;
+    
+    while (i < str.length) {
+        if (str[i] === token) {
+            // Check if it's not preceded by 'j' and not followed by the same token
+            const prevChar = i > 0 ? str[i - 1] : '';
+            const nextChar = i < str.length - 1 ? str[i + 1] : '';
+            
+            if (prevChar !== 'j' && nextChar !== token) {
+                result.push(replacement);
+                i++;
+                continue;
+            }
+        }
+        result.push(str[i]);
+        i++;
+    }
+    
+    return result.join('');
 }
 
 /**
@@ -185,9 +210,11 @@ export function fileMatchesDate(
 
 /**
  * Extract date components from a file path based on a pattern
+ * Note: This is a simplified extraction that looks for common date patterns.
+ * It works best with standard formats and may not perfectly handle all custom patterns.
  * @param filePath The file path to parse
  * @param basePath Base folder path
- * @param pattern Date format pattern
+ * @param pattern Date format pattern (currently not fully utilized in parsing)
  * @param usePersian Whether using Persian calendar
  * @returns Date components or null if path doesn't match pattern
  */

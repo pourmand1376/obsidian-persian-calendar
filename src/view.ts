@@ -679,9 +679,10 @@ public async openOrCreateDailyNote(dayNumber: number) {
         const usePersian = this.settings.dateFormat === 'persian';
         
         // Build date components for weekly note
+        // Note: month is required by DateFormatComponents interface but not used for week-based formatting
         const components: DateFormatComponents = { 
             year: jy, 
-            month: 1, // Not used for weekly notes, but required
+            month: 1,
             week: weekNumber 
         };
         
@@ -818,9 +819,10 @@ public async openOrCreateDailyNote(dayNumber: number) {
         const usePersian = this.settings.dateFormat === 'persian';
         
         // Build date components for yearly note
+        // Note: month is required by DateFormatComponents interface but not used for year-only formatting
         const components: DateFormatComponents = { 
             year: jy, 
-            month: 1 // Not really used for yearly notes
+            month: 1
         };
         
         // Generate the file path using the format pattern
