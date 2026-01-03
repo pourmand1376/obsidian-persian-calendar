@@ -36,8 +36,13 @@ export function formatDatePath(
             pattern = 'YYYY-[W]WW';
         } else if (components.quarter) {
             pattern = 'YYYY-[Q]Q';
-        } else if (components.month) {
+        } else if (components.month && components.month > 1) {
+            // Monthly note - only if month is explicitly set to something other than 1
             pattern = 'YYYY-MM';
+        } else if (components.month === 1) {
+            // Could be monthly (explicit January) or yearly (month is just placeholder)
+            // We'll default to yearly (YYYY) since that's the simpler case
+            pattern = 'YYYY';
         } else {
             pattern = 'YYYY';
         }
@@ -89,16 +94,21 @@ export function formatDatePath(
         // that avoids already-replaced tokens
         momentPattern = replaceSingleTokens(momentPattern);
         
-        // Quarter handling for Persian calendar
+        // Handle quarter token Q (moment.js doesn't have quarter support)
+        // We need to replace standalone Q but not Q within [Q]
         if (components.quarter) {
-            momentPattern = momentPattern.replace(/Q/g, components.quarter.toString());
+            momentPattern = replaceQuarterToken(momentPattern, components.quarter);
         }
+        
+        // Note: [W] and [Q] are moment.js escaping - they output literal W and Q
+        // These are left as-is and moment will handle them
     } else {
         // For Gregorian, handle week number
         momentPattern = momentPattern.replace(/WW/g, 'ww');
-        // Handle quarter
+        
+        // Handle quarter for Gregorian too
         if (components.quarter) {
-            momentPattern = momentPattern.replace(/Q/g, components.quarter.toString());
+            momentPattern = replaceQuarterToken(momentPattern, components.quarter);
         }
     }
 
@@ -125,6 +135,33 @@ function replaceSingleTokens(pattern: string): string {
             result.push('jM');
         } else if (char === 'D' && prevChar !== 'D' && nextChar !== 'D' && prevChar !== 'j') {
             result.push('jD');
+        } else {
+            result.push(char);
+        }
+    }
+    
+    return result.join('');
+}
+
+/**
+ * Helper function to replace Q tokens with quarter number
+ * Avoids replacing Q within [Q] escape sequences
+ */
+function replaceQuarterToken(pattern: string, quarter: number): string {
+    const result: string[] = [];
+    let insideBrackets = false;
+    
+    for (let i = 0; i < pattern.length; i++) {
+        const char = pattern[i];
+        
+        if (char === '[') {
+            insideBrackets = true;
+            result.push(char);
+        } else if (char === ']') {
+            insideBrackets = false;
+            result.push(char);
+        } else if (char === 'Q' && !insideBrackets) {
+            result.push(quarter.toString());
         } else {
             result.push(char);
         }

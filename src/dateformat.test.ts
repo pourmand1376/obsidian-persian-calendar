@@ -40,6 +40,16 @@ jest.mock('moment-jalaali', () => {
     
     m.format = (fmt: string) => {
       let result = fmt;
+      
+      // Handle moment.js escape sequences [text] - these become literal text
+      // We need to protect them during token replacement
+      const escapedParts: string[] = [];
+      result = result.replace(/\[([^\]]+)\]/g, (match, content) => {
+        const placeholder = `__ESCAPED_${escapedParts.length}__`;
+        escapedParts.push(content);
+        return placeholder;
+      });
+      
       // Replace all j-prefixed tokens
       result = result.replace(/jYYYY/g, String(m._jy).padStart(4, '0'));
       result = result.replace(/jMM/g, String(jm).padStart(2, '0'));
@@ -48,11 +58,12 @@ jest.mock('moment-jalaali', () => {
       result = result.replace(/jD/g, String(m._jd));
       result = result.replace(/jMMMM/g, 'MonthName'); // Simplified
       result = result.replace(/ww/g, String(m._jw).padStart(2, '0'));
-      // Handle quarters
-      if (result.includes('Q')) {
-        const quarter = Math.ceil(jm / 3);
-        result = result.replace(/Q/g, String(quarter));
-      }
+      
+      // Restore escaped parts
+      escapedParts.forEach((content, index) => {
+        result = result.replace(`__ESCAPED_${index}__`, content);
+      });
+      
       return result;
     };
     m.isValid = () => true;
@@ -62,8 +73,52 @@ jest.mock('moment-jalaali', () => {
   
   const mockMoment: any = (input?: any, format?: any) => {
     if (!input && !format) {
-      // moment() with no args - return current date mock
-      return createMockMoment(1403, 8, 15, 32);
+      // moment() with no args - create a special mock that can handle both calendars
+      const persianMock = createMockMoment(1403, 8, 15, 32);
+      const gregorianMock = actualMoment();
+      
+      // Create a hybrid that delegates to the right one based on which methods are called
+      const hybrid: any = {};
+      let usedPersian = false;
+      let usedGregorian = false;
+      
+      // Persian methods
+      hybrid.jYear = (val?: number) => {
+        usedPersian = true;
+        return persianMock.jYear(val);
+      };
+      hybrid.jWeek = (val?: number) => {
+        usedPersian = true;
+        return persianMock.jWeek(val);
+      };
+      
+      // Gregorian methods
+      hybrid.year = (val?: number) => {
+        usedGregorian = true;
+        if (val !== undefined) {
+          gregorianMock.year(val);
+          return hybrid;
+        }
+        return gregorianMock.year();
+      };
+      hybrid.week = (val?: number) => {
+        usedGregorian = true;
+        if (val !== undefined) {
+          gregorianMock.week(val);
+          return hybrid;
+        }
+        return gregorianMock.week();
+      };
+      
+      // Format delegates to the right one
+      hybrid.format = (fmt: string) => {
+        if (usedPersian || fmt.includes('j')) {
+          return persianMock.format(fmt);
+        }
+        return gregorianMock.format(fmt);
+      };
+      
+      return hybrid;
     }
     
     if (typeof input === 'string' && format) {
