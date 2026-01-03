@@ -6,6 +6,11 @@ interface PluginSettings {
     enableQuarterlyNotes: boolean;
     quarterlyNotesFolderPath: string;
     dateFormat: string;
+    dailyNotesFormat: string;
+    weeklyNotesFormat: string;
+    monthlyNotesFormat: string;
+    quarterlyNotesFormat: string;
+    yearlyNotesFormat: string;
     version: string;
     announceUpdates: boolean;
     showGeorgianDates: boolean;
@@ -36,6 +41,11 @@ const DEFAULT_SETTINGS: PluginSettings = {
     enableQuarterlyNotes: true,
     quarterlyNotesFolderPath: '/',
     dateFormat: 'persian',
+    dailyNotesFormat: 'YYYY-MM-DD',
+    weeklyNotesFormat: 'YYYY-[W]WW',
+    monthlyNotesFormat: 'YYYY-MM',
+    quarterlyNotesFormat: 'YYYY-[Q]Q',
+    yearlyNotesFormat: 'YYYY',
     version: `0.0.0`,
     timeoutDuration: 1250,
     announceUpdates: true,
