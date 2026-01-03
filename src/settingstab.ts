@@ -23,6 +23,8 @@ export default class PersianCalendarSettingTab extends PluginSettingTab {
     
          
         this.addPathSetting(containerEl, 'مسیر روزنوشت‌ها', 'dailyNotesFolderPath');
+        this.addFormatSetting(containerEl, 'فرمت نام فایل روزنوشت‌ها', 'dailyNotesFormat', 
+            'فرمت نام فایل و پوشه‌بندی روزنوشت‌ها. مثال: YYYY/MM/YYYY-MM-DD برای ایجاد پوشه سال/ماه');
         new Setting(containerEl)
         .setName('فرمت نام‌گذاری و شناسایی روزنوشت‌ها')
         .setDesc('مشخص کنید روزنوشت‌ها با چه فرمتی نام‌گذاری شوند. این نام در Title روزنوشت‌ها قرار می‌گیرد.')
@@ -36,9 +38,17 @@ export default class PersianCalendarSettingTab extends PluginSettingTab {
                 this.plugin.refreshViews();  // Optionally refresh views if necessary
             }));
         this.addPathSetting(containerEl, 'مسیر هفته‌نوشت‌ها', 'weeklyNotesFolderPath');
+        this.addFormatSetting(containerEl, 'فرمت نام فایل هفته‌نوشت‌ها', 'weeklyNotesFormat',
+            'فرمت نام فایل و پوشه‌بندی هفته‌نوشت‌ها. مثال: YYYY/YYYY-[W]WW');
         this.addPathSetting(containerEl, 'مسیر ماه‌نوشت‌ها', 'monthlyNotesFolderPath');
+        this.addFormatSetting(containerEl, 'فرمت نام فایل ماه‌نوشت‌ها', 'monthlyNotesFormat',
+            'فرمت نام فایل و پوشه‌بندی ماه‌نوشت‌ها. مثال: YYYY/YYYY-MM');
         this.addPathSetting(containerEl, 'مسیر فصل‌نوشت‌ها', 'quarterlyNotesFolderPath');
+        this.addFormatSetting(containerEl, 'فرمت نام فایل فصل‌نوشت‌ها', 'quarterlyNotesFormat',
+            'فرمت نام فایل و پوشه‌بندی فصل‌نوشت‌ها. مثال: YYYY/YYYY-[Q]Q');
         this.addPathSetting(containerEl, 'مسیر سال‌نوشت‌ها', 'yearlyNotesFolderPath');
+        this.addFormatSetting(containerEl, 'فرمت نام فایل سال‌نوشت‌ها', 'yearlyNotesFormat',
+            'فرمت نام فایل و پوشه‌بندی سال‌نوشت‌ها. مثال: YYYY');
         new Setting(containerEl)
             .setName('فعال‌سازی نمایش فصل‌نوشت‌ها در تقویم')
             .setDesc('نمایش یا پنهان کردن ردیف فصل‌نوشت‌ها در نمای تقویم')
@@ -188,6 +198,20 @@ export default class PersianCalendarSettingTab extends PluginSettingTab {
             .setName(name)
             .addText(text => text
                 .setPlaceholder('Path/for/notes')
+                .setValue(this.plugin.settings[settingKey] as string)
+                .onChange(async (value) => {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (this.plugin.settings as any)[settingKey] = value;
+                    await this.plugin.saveSettings();
+                }));
+    }
+
+    addFormatSetting(containerEl: HTMLElement, name: string, settingKey: keyof PluginSettings, description: string) {
+        new Setting(containerEl)
+            .setName(name)
+            .setDesc(description)
+            .addText(text => text
+                .setPlaceholder('YYYY-MM-DD')
                 .setValue(this.plugin.settings[settingKey] as string)
                 .onChange(async (value) => {
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -8,6 +8,8 @@ import hijriMoment from 'moment-hijri';
 import PersianCalendarPlugin from './main';
 import { PersianCalendarHolidays, HijriCalendarHolidays, GregorianCalendarHolidays } from './holidays';
 import { iranianHijriAdjustments,basePersianDate, baseHijriDate } from './hijri';
+import { generateNotePath, extractFolderPath, DateFormatComponents } from './dateformat';
+
 
 
 
@@ -616,17 +618,34 @@ export default class PersianCalendarView extends View {
 public async openOrCreateDailyNote(dayNumber: number) {
     const year = this.currentJalaaliYear;
     const month = this.currentJalaaliMonth;
-    let dateString = `${year}-${month.toString().padStart(2, '0')}-${dayNumber.toString().padStart(2, '0')}`;
-    if (this.settings.dateFormat === 'georgian') {
+    
+    // Determine which calendar to use for formatting
+    const usePersian = this.settings.dateFormat === 'persian';
+    
+    // Build date components
+    let components: DateFormatComponents;
+    if (usePersian) {
+        components = { year, month, day: dayNumber };
+    } else {
         const gregorianDate = toGregorian(year, month, dayNumber);
-        dateString = `${gregorianDate.gy}-${gregorianDate.gm.toString().padStart(2, '0')}-${gregorianDate.gd.toString().padStart(2, '0')}`;
+        components = { year: gregorianDate.gy, month: gregorianDate.gm, day: gregorianDate.gd };
     }
-    const notesLocation = this.settings.dailyNotesFolderPath.trim().replace(/^\/*|\/*$/g, "");
-    const filePath = `${notesLocation === '' ? '' : notesLocation + '/'}${dateString}.md`;
+    
+    // Generate the file path using the format pattern
+    const filePath = generateNotePath(
+        this.settings.dailyNotesFolderPath,
+        this.settings.dailyNotesFormat,
+        components,
+        usePersian
+    );
 
     try {
         let dailyNoteFile = await this.app.vault.getAbstractFileByPath(filePath);
         if (!dailyNoteFile) {
+            // Ensure parent folders exist
+            await this.ensureFolderExists(filePath);
+            
+            // Create the file
             await this.app.vault.create(filePath, '');
            
             dailyNoteFile = await this.app.vault.getAbstractFileByPath(filePath);
@@ -648,14 +667,30 @@ public async openOrCreateDailyNote(dayNumber: number) {
     
     
     public async openOrCreateWeeklyNote(weekNumber: number, jy: number) {
-        const weekString = `${jy}-W${weekNumber}`;
-        const notesLocation = this.settings.weeklyNotesFolderPath.trim().replace(/^\/*|\/*$/g, "");
-        const filePath = `${notesLocation === '' ? '' : notesLocation + '/'}${weekString}.md`;
+        const usePersian = this.settings.dateFormat === 'persian';
+        
+        // Build date components for weekly note
+        const components: DateFormatComponents = { 
+            year: jy, 
+            month: 1, // Not used for weekly notes, but required
+            week: weekNumber 
+        };
+        
+        // Generate the file path using the format pattern
+        const filePath = generateNotePath(
+            this.settings.weeklyNotesFolderPath,
+            this.settings.weeklyNotesFormat,
+            components,
+            usePersian
+        );
     
         try {
             let weeklyNoteFile = await this.app.vault.getAbstractFileByPath(filePath);
     
             if (!weeklyNoteFile) {
+                // Ensure parent folders exist
+                await this.ensureFolderExists(filePath);
+                
                 await this.app.vault.create(filePath, '');
                 weeklyNoteFile = await this.app.vault.getAbstractFileByPath(filePath);
                 this.render();
@@ -683,14 +718,29 @@ public async openOrCreateDailyNote(dayNumber: number) {
     
 
     public async openOrCreateMonthlyNote(month: number, jy: number) {
-        const monthString = `${jy}-${month.toString().padStart(2, '0')}`;
-        const notesLocation = this.settings.monthlyNotesFolderPath.trim().replace(/^\/*|\/*$/g, "");
-        const filePath = `${notesLocation === '' ? '' : notesLocation + '/'}${monthString}.md`;
+        const usePersian = this.settings.dateFormat === 'persian';
+        
+        // Build date components for monthly note
+        const components: DateFormatComponents = { 
+            year: jy, 
+            month: month
+        };
+        
+        // Generate the file path using the format pattern
+        const filePath = generateNotePath(
+            this.settings.monthlyNotesFolderPath,
+            this.settings.monthlyNotesFormat,
+            components,
+            usePersian
+        );
     
         try {
             let monthlyNoteFile = await this.app.vault.getAbstractFileByPath(filePath);
     
             if (!monthlyNoteFile) {
+                // Ensure parent folders exist
+                await this.ensureFolderExists(filePath);
+                
                 await this.app.vault.create(filePath, '');
                  
                 monthlyNoteFile = await this.app.vault.getAbstractFileByPath(filePath);
@@ -710,17 +760,31 @@ public async openOrCreateDailyNote(dayNumber: number) {
     }
     
     public async openOrCreateQuarterlyNote(quarter: number, jy: number) {
-         
-        const quarterString = `${jy}-Q${quarter}`;
-         
-        const notesLocation = this.settings.quarterlyNotesFolderPath.trim().replace(/^\/*|\/*$/g, "");
-        const filePath = `${notesLocation === '' ? '' : notesLocation + '/'}${quarterString}.md`;
+        const usePersian = this.settings.dateFormat === 'persian';
+        
+        // Build date components for quarterly note
+        const components: DateFormatComponents = { 
+            year: jy, 
+            month: (quarter - 1) * 3 + 1, // First month of the quarter
+            quarter: quarter
+        };
+        
+        // Generate the file path using the format pattern
+        const filePath = generateNotePath(
+            this.settings.quarterlyNotesFolderPath,
+            this.settings.quarterlyNotesFormat,
+            components,
+            usePersian
+        );
         
         try {
             let quarterlyNoteFile = await this.app.vault.getAbstractFileByPath(filePath);
             
              
             if (!quarterlyNoteFile) {
+                // Ensure parent folders exist
+                await this.ensureFolderExists(filePath);
+                
                 await this.app.vault.create(filePath, '');
                  
                 quarterlyNoteFile = await this.app.vault.getAbstractFileByPath(filePath);
@@ -742,14 +806,29 @@ public async openOrCreateDailyNote(dayNumber: number) {
     
 
     public async openOrCreateYearlyNote(jy: number) {
-        const yearString = `${jy}`;
-        const notesLocation = this.settings.yearlyNotesFolderPath.trim().replace(/^\/*|\/*$/g, "");
-        const filePath = `${notesLocation === '' ? '' : notesLocation + '/'}${yearString}.md`;
+        const usePersian = this.settings.dateFormat === 'persian';
+        
+        // Build date components for yearly note
+        const components: DateFormatComponents = { 
+            year: jy, 
+            month: 1 // Not really used for yearly notes
+        };
+        
+        // Generate the file path using the format pattern
+        const filePath = generateNotePath(
+            this.settings.yearlyNotesFolderPath,
+            this.settings.yearlyNotesFormat,
+            components,
+            usePersian
+        );
     
         try {
             let yearlyNoteFile = await this.app.vault.getAbstractFileByPath(filePath);
     
             if (!yearlyNoteFile) {
+                // Ensure parent folders exist
+                await this.ensureFolderExists(filePath);
+                
                 await this.app.vault.create(filePath, '');
                  
                 yearlyNoteFile = await this.app.vault.getAbstractFileByPath(filePath);
@@ -785,6 +864,25 @@ public async openOrCreateDailyNote(dayNumber: number) {
         await this.app.workspace.openLinkText(noteFile.path, '', false);
     }
 }
+
+    /**
+     * Ensures that all parent folders exist for a given file path
+     * @param filePath The complete file path
+     */
+    private async ensureFolderExists(filePath: string): Promise<void> {
+        const folderPath = extractFolderPath(filePath);
+        if (folderPath && folderPath !== '') {
+            const folder = this.app.vault.getAbstractFileByPath(folderPath);
+            if (!folder) {
+                try {
+                    await this.app.vault.createFolder(folderPath);
+                } catch (error) {
+                    // Folder might already exist, which is fine
+                    console.debug('Folder creation note:', error);
+                }
+            }
+        }
+    }
 
     private scrollToDay(dayNumber: number) {
          
